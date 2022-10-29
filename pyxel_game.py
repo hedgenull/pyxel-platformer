@@ -4,10 +4,10 @@ import pyxel
 
 # Constants
 WINDOW_WIDTH = 128
-WINDOW_HEIGHT = 128
+WINDOW_HEIGHT = 148
 STAGE_WIDTH = 512
 STAGE_HEIGHT = 128
-PLAYER_WIDTH = 16
+PLAYER_WIDTH = 8
 PLAYER_HEIGHT = 8
 STARTING_PLAYER_X = 8
 STARTING_PLAYER_Y = 112
@@ -15,11 +15,16 @@ PLAYER_SPEED = 4
 PLAYER_JUMP_SPEED = 2
 MAX_PLAYER_JUMP_HEIGHT = 2 * PLAYER_HEIGHT
 PLAYER_JUMP_COOLDOWN = 0.5
-WALL = (0, 2)  # Location of wall tile in sprite sheet
+WALL = (2, 0)  # Location of wall tile in sprite sheet
 
 
 def get_tile(tile_x, tile_y):
     return pyxel.tilemap(0).pget(tile_x, tile_y)
+
+
+def is_wall(x, y):
+    tile = get_tile(x // 8, y // 8)
+    return tile == WALL
 
 
 class Player:
@@ -49,16 +54,16 @@ class Player:
 
     def colliding(self, direction):
         if direction == "left":
-            if get_tile(self.x - PLAYER_WIDTH, self.y) == WALL:
+            if is_wall(self.x + 4, self.y):
                 return True
         elif direction == "right":
-            if get_tile(self.x + PLAYER_WIDTH, self.y) == WALL:
+            if is_wall(self.x, self.y):
                 return True
         elif direction == "up":
-            if get_tile(self.x, self.y - PLAYER_HEIGHT) == WALL:
+            if is_wall(self.x - 4, self.y):
                 return True
         elif direction == "down":
-            if get_tile(self.x, self.y + PLAYER_HEIGHT) == WALL:
+            if is_wall(self.x, self.y - 4):
                 return True
         return False
 
@@ -113,16 +118,16 @@ class App:
 
         # Draw the player
         # blt(x, y, image index, column, row, width, height, transparency color)
-        pyxel.blt(self.player.x, self.player.y, 0, 0.4, 0.4, PLAYER_WIDTH, PLAYER_HEIGHT, 14)
+        pyxel.blt(self.player.x, self.player.y, 0, 8, 0, PLAYER_WIDTH, PLAYER_HEIGHT, 14)
 
         # Draw the tilemap
         # bltm(x, y, tilemap index, column, row, width, height, transparency color)
         pyxel.bltm(0, 0, 0, 0, 0, STAGE_WIDTH, STAGE_HEIGHT, 14)
 
-        # Debugging
+        # Debugging info
         pyxel.text(self.camera_x + 5, 5, f"X: {self.player.x}, Y: {self.player.y}", 7)
-        pyxel.text(self.camera_x + 5, 15, f"Block: {get_tile(0, 0)}", 7)
-        pyxel.tilemap(0).pset(0, 0, (0, 0))
+        pyxel.text(self.camera_x + 5, 15, f"{get_tile(-8, 112)}", 7)
+        pyxel.pset(self.player.x, self.player.y, 7)
 
 
 App()
