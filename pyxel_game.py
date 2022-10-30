@@ -13,7 +13,7 @@ STARTING_PLAYER_X = 8
 STARTING_PLAYER_Y = 112
 PLAYER_SPEED = 4
 PLAYER_JUMP_SPEED = 2
-MAX_PLAYER_JUMP_HEIGHT = 3 * PLAYER_HEIGHT
+MAX_PLAYER_JUMP_HEIGHT = 2 * PLAYER_HEIGHT
 PLAYER_JUMP_COOLDOWN = 0.5
 WALL = (2, 0)  # Location of wall tile in sprite sheet
 
@@ -31,14 +31,14 @@ class Player:
     def __init__(self):
         self.x = STARTING_PLAYER_X
         self.y = STARTING_PLAYER_Y
+        self.jumping_y = self.y
         self.last_jumped = time.time()
         self.jumping = True
-        self.jumping_y = 0
 
     def check_jumping(self):
         """Make the player jump/fall."""
         if self.jumping:  # Player is jumping
-            if not self.colliding("up") and self.jumping_y < MAX_PLAYER_JUMP_HEIGHT:
+            if not self.colliding("up") and self.jumping_y - self.y < MAX_PLAYER_JUMP_HEIGHT:
                 self.y -= PLAYER_JUMP_SPEED
                 self.jumping_y += PLAYER_JUMP_SPEED
             else:
@@ -55,7 +55,7 @@ class Player:
             if is_wall(self.x + PLAYER_WIDTH, self.y):
                 return True
         elif direction == "up":
-            if is_wall(self.x, self.y - PLAYER_HEIGHT):
+            if is_wall(self.x, self.y):
                 return True
         elif direction == "down":
             if is_wall(self.x, self.y + PLAYER_HEIGHT):
