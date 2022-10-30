@@ -5,7 +5,7 @@ import pyxel
 # Constants
 WINDOW_WIDTH = 148
 WINDOW_HEIGHT = 129
-STAGE_WIDTH = 1280
+STAGE_WIDTH = 2048
 STAGE_HEIGHT = 136
 SCROLL_BORDER_X = 80
 PLAYER_WIDTH = 8
@@ -15,8 +15,9 @@ STARTING_PLAYER_Y = 112
 PLAYER_SPEED = 2
 PLAYER_JUMP_SPEED = 6
 JUMP_COOLDOWN_SECONDS = 0.5
-BRICKS = (2, 0)  # Location of wall tile in sprite sheet
+BRICKS = (2, 0)
 PLATFORM = (2, 1)
+GOLD = (3, 1)
 scroll_x = 0
 
 
@@ -24,14 +25,9 @@ def get_tile(tile_x, tile_y):
     return pyxel.tilemap(0).pget(tile_x, tile_y)
 
 
-def is_wall(x, y):
-    tile = get_tile(x // 8, y // 8)
-    return tile == BRICKS
-
-
 def detect_collision(x, y, dy, tiles=None):
     if tiles is None:
-        tiles = [BRICKS, PLATFORM]
+        tiles = [BRICKS, PLATFORM, GOLD]
     x1 = x // 8
     y1 = y // 8
     x2 = (x + 8 - 1) // 8
