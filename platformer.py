@@ -124,7 +124,7 @@ class App:
         self.player = Player()
         self.end = False
         pyxel.init(WINDOW_WIDTH, WINDOW_HEIGHT, title="Pyxel Platformer")
-        pyxel.load("pyxel_game.pyxres")
+        pyxel.load("resources.pyxres")
         pyxel.run(self.update, self.draw)
 
     def update(self):
