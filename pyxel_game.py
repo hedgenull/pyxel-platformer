@@ -4,18 +4,19 @@ import pyxel
 
 # Constants
 WINDOW_WIDTH = 148
-WINDOW_HEIGHT = 128
-STAGE_WIDTH = 512
-STAGE_HEIGHT = 128
+WINDOW_HEIGHT = 129
+STAGE_WIDTH = 1024
+STAGE_HEIGHT = 129
 SCROLL_BORDER_X = 80
 PLAYER_WIDTH = 8
 PLAYER_HEIGHT = 8
-STARTING_PLAYER_X = 8
-STARTING_PLAYER_Y = 112
+STARTING_PLAYER_X = 105 * 8
+STARTING_PLAYER_Y = 8
 PLAYER_SPEED = 2
 PLAYER_JUMP_SPEED = 6
 JUMP_COOLDOWN_SECONDS = 0.5
 BRICKS = (2, 0)  # Location of wall tile in sprite sheet
+PLATFORM = (2, 1)
 scroll_x = 0
 
 
@@ -28,18 +29,20 @@ def is_wall(x, y):
     return tile == BRICKS
 
 
-def detect_collision(x, y, dy):
+def detect_collision(x, y, dy, tiles=None):
+    if tiles is None:
+        tiles = [BRICKS, PLATFORM]
     x1 = x // 8
     y1 = y // 8
     x2 = (x + 8 - 1) // 8
     y2 = (y + 8 - 1) // 8
     for yi in range(y1, y2 + 1):
         for xi in range(x1, x2 + 1):
-            if get_tile(xi, yi) == BRICKS:
+            if get_tile(xi, yi) in tiles:
                 return True
     if dy > 0 and y % 8 == 1:
         for xi in range(x1, x2 + 1):
-            if get_tile(xi, y1 + 1) == BRICKS:
+            if get_tile(xi, y1 + 1) in tiles:
                 return True
     return False
 
@@ -96,14 +99,16 @@ class Player:
         self.dy = min(self.dy + 1, 3)
 
         if (
-            pyxel.btnp(pyxel.KEY_UP) or pyxel.btnp(pyxel.GAMEPAD1_BUTTON_A)
-        ) and time.time() - self.last_jumped > JUMP_COOLDOWN_SECONDS:
+            (pyxel.btnp(pyxel.KEY_UP) or pyxel.btnp(pyxel.GAMEPAD1_BUTTON_A))
+            and time.time() - self.last_jumped > JUMP_COOLDOWN_SECONDS
+            and not self.is_falling
+        ):
             self.dy = -PLAYER_JUMP_SPEED
             self.last_jumped = time.time()
 
         self.x, self.y, self.dx, self.dy = push_back(self.x, self.y, self.dx, self.dy)
-        if self.x < scroll_x:
-            scroll_x = self.x
+        if self.x - SCROLL_BORDER_X < scroll_x:
+            scroll_x = self.x - SCROLL_BORDER_X
         self.y = max(self.y, 0)
         self.dx = int(self.dx * 0.8)
         self.is_falling = self.y > last_y
@@ -117,28 +122,40 @@ class App:
 
     def __init__(self):
         self.player = Player()
-        pyxel.init(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.end = False
+        pyxel.init(WINDOW_WIDTH, WINDOW_HEIGHT, title="Pyxel Platformer")
         pyxel.load("pyxel_game.pyxres")
         pyxel.run(self.update, self.draw)
 
     def update(self):
         """Update the game elements."""
-        # Player movement
-        self.player.update()
+        if not self.end:
+            # Player movement
+            self.player.update()
+            if detect_collision(self.player.x, self.player.y, self.player.dy, [(1, 1)]):
+                # Touched the portal!!!
+                self.end = True
+        elif pyxel.btnp(pyxel.KEY_Q):
+            pyxel.quit()
 
     def draw(self):
         """Draw the game elements."""
-        # Clear/fill the screen
-        pyxel.cls(0)
-        pyxel.camera(scroll_x, 0)
+        if not self.end:
+            # Clear/fill the screen
+            pyxel.cls(0)
+            pyxel.camera(scroll_x, 0)
 
-        # Draw the player
-        # blt(x, y, image index, column, row, width, height, transparency color)
-        pyxel.blt(self.player.x, self.player.y, 0, 8, 0, PLAYER_WIDTH, PLAYER_HEIGHT, 14)
+            # Draw the player
+            # blt(x, y, image index, column, row, width, height, transparency color)
+            pyxel.blt(self.player.x, self.player.y, 0, 8, 0, PLAYER_WIDTH, PLAYER_HEIGHT, 14)
 
-        # Draw the tilemap
-        # bltm(x, y, tilemap index, column, row, width, height, transparency color)
-        pyxel.bltm(0, 0, 0, 0, 0, STAGE_WIDTH, STAGE_HEIGHT, 14)
+            # Draw the tilemap
+            # bltm(x, y, tilemap index, column, row, width, height, transparency color)
+            pyxel.bltm(0, 0, 0, 0, 0, STAGE_WIDTH, STAGE_HEIGHT, 14)
+        else:
+            pyxel.cls(0)
+            pyxel.camera()
+            pyxel.text(5, 5, "You Won!!!\nThanks for playing!\n[Q]uit\n\n\nPyxel Platformer by Hedge Fleming", 8)
 
 
 App()
