@@ -3,19 +3,20 @@ import time
 import pyxel
 
 # Constants
-WINDOW_WIDTH = 128
-WINDOW_HEIGHT = 148
+WINDOW_WIDTH = 148
+WINDOW_HEIGHT = 128
 STAGE_WIDTH = 512
 STAGE_HEIGHT = 128
+SCROLL_BORDER_X = 80
 PLAYER_WIDTH = 8
 PLAYER_HEIGHT = 8
 STARTING_PLAYER_X = 8
 STARTING_PLAYER_Y = 112
-PLAYER_SPEED = 4
-PLAYER_JUMP_SPEED = 2
-MAX_PLAYER_JUMP_HEIGHT = 2 * PLAYER_HEIGHT
-PLAYER_JUMP_COOLDOWN = 0.5
-WALL = (2, 0)  # Location of wall tile in sprite sheet
+PLAYER_SPEED = 2
+PLAYER_JUMP_SPEED = 6
+JUMP_COOLDOWN_SECONDS = 0.5
+BRICKS = (2, 0)  # Location of wall tile in sprite sheet
+scroll_x = 0
 
 
 def get_tile(tile_x, tile_y):
@@ -24,59 +25,91 @@ def get_tile(tile_x, tile_y):
 
 def is_wall(x, y):
     tile = get_tile(x // 8, y // 8)
-    return tile == WALL
+    return tile == BRICKS
+
+
+def detect_collision(x, y, dy):
+    x1 = x // 8
+    y1 = y // 8
+    x2 = (x + 8 - 1) // 8
+    y2 = (y + 8 - 1) // 8
+    for yi in range(y1, y2 + 1):
+        for xi in range(x1, x2 + 1):
+            if get_tile(xi, yi) == BRICKS:
+                return True
+    if dy > 0 and y % 8 == 1:
+        for xi in range(x1, x2 + 1):
+            if get_tile(xi, y1 + 1) == BRICKS:
+                return True
+    return False
+
+
+def push_back(x, y, dx, dy):
+    abs_dx = abs(dx)
+    abs_dy = abs(dy)
+    if abs_dx > abs_dy:
+        sign = 1 if dx > 0 else -1
+        for _ in range(abs_dx):
+            if detect_collision(x + sign, y, dy):
+                break
+            x += sign
+        sign = 1 if dy > 0 else -1
+        for _ in range(abs_dy):
+            if detect_collision(x, y + sign, dy):
+                break
+            y += sign
+    else:
+        sign = 1 if dy > 0 else -1
+        for _ in range(abs_dy):
+            if detect_collision(x, y + sign, dy):
+                break
+            y += sign
+        sign = 1 if dx > 0 else -1
+        for _ in range(abs_dx):
+            if detect_collision(x + sign, y, dy):
+                break
+            x += sign
+    return x, y, dx, dy
 
 
 class Player:
     def __init__(self):
         self.x = STARTING_PLAYER_X
         self.y = STARTING_PLAYER_Y
-        self.jumping_y = self.y
-        self.last_jumped = time.time()
-        self.jumping = True
-
-    def check_jumping(self):
-        """Make the player jump/fall."""
-        if self.jumping:  # Player is jumping
-            if not self.colliding("up") and self.jumping_y - self.y < MAX_PLAYER_JUMP_HEIGHT:
-                self.y -= PLAYER_JUMP_SPEED
-                self.jumping_y += PLAYER_JUMP_SPEED
-            else:
-                self.jumping = False
-        elif not self.colliding("down"):  # Player is falling and not touching floor
-            self.y += PLAYER_JUMP_SPEED
-            self.jumping_y -= PLAYER_JUMP_SPEED
-
-    def colliding(self, direction):
-        if direction == "left":
-            if is_wall(self.x - PLAYER_WIDTH // 2, self.y):
-                return True
-        elif direction == "right":
-            if is_wall(self.x + PLAYER_WIDTH, self.y):
-                return True
-        elif direction == "up":
-            if is_wall(self.x, self.y):
-                return True
-        elif direction == "down":
-            if is_wall(self.x, self.y + PLAYER_HEIGHT):
-                return True
-        return False
+        self.dx = 0
+        self.dy = 0
+        self.direction = 1
+        self.is_falling = False
+        self.last_jumped = 0
 
     def update(self):
-        """Helper function to update the player's position."""
-        # Move player left
-        if pyxel.btn(pyxel.KEY_LEFT) and not self.colliding("left"):
-            self.x -= PLAYER_SPEED
+        global scroll_x
+        last_y = self.y
+        if pyxel.btn(pyxel.KEY_LEFT) or pyxel.btn(pyxel.GAMEPAD1_BUTTON_DPAD_LEFT):
+            self.dx = -PLAYER_SPEED
+            self.direction = -1
 
-        # Move player right
-        if pyxel.btn(pyxel.KEY_RIGHT) and not self.colliding("right"):
-            self.x += PLAYER_SPEED
+        if pyxel.btn(pyxel.KEY_RIGHT) or pyxel.btn(pyxel.GAMEPAD1_BUTTON_DPAD_RIGHT):
+            self.dx = PLAYER_SPEED
+            self.direction = 1
 
-        # Make player jump
-        if pyxel.btn(pyxel.KEY_UP) and not self.jumping and time.time() - self.last_jumped > PLAYER_JUMP_COOLDOWN:
-            self.jumping = True
+        self.dy = min(self.dy + 1, 3)
 
-        self.check_jumping()
+        if (
+            pyxel.btnp(pyxel.KEY_UP) or pyxel.btnp(pyxel.GAMEPAD1_BUTTON_A)
+        ) and time.time() - self.last_jumped > JUMP_COOLDOWN_SECONDS:
+            self.dy = -PLAYER_JUMP_SPEED
+            self.last_jumped = time.time()
+
+        self.x, self.y, self.dx, self.dy = push_back(self.x, self.y, self.dx, self.dy)
+        if self.x < scroll_x:
+            scroll_x = self.x
+        self.y = max(self.y, 0)
+        self.dx = int(self.dx * 0.8)
+        self.is_falling = self.y > last_y
+
+        if self.x > scroll_x + SCROLL_BORDER_X:
+            scroll_x = min(self.x - SCROLL_BORDER_X, 240 * 8)
 
 
 class App:
@@ -84,27 +117,20 @@ class App:
 
     def __init__(self):
         self.player = Player()
-        self.camera_x = 0
-        self.camera_y = 0
         pyxel.init(WINDOW_WIDTH, WINDOW_HEIGHT)
         pyxel.load("pyxel_game.pyxres")
         pyxel.run(self.update, self.draw)
-
-    def _update_camera(self):
-        """Helper function to update the camera's position."""
-        self.camera_x = self.player.x - WINDOW_WIDTH // 2
-        pyxel.camera(self.camera_x, self.camera_y)
 
     def update(self):
         """Update the game elements."""
         # Player movement
         self.player.update()
-        self._update_camera()
 
     def draw(self):
         """Draw the game elements."""
         # Clear/fill the screen
         pyxel.cls(0)
+        pyxel.camera(scroll_x, 0)
 
         # Draw the player
         # blt(x, y, image index, column, row, width, height, transparency color)
@@ -113,16 +139,6 @@ class App:
         # Draw the tilemap
         # bltm(x, y, tilemap index, column, row, width, height, transparency color)
         pyxel.bltm(0, 0, 0, 0, 0, STAGE_WIDTH, STAGE_HEIGHT, 14)
-
-        # Debugging info
-        pyxel.text(self.camera_x + 5, 5, f"X: {self.player.x}, Y: {self.player.y}", 8)
-        pyxel.text(
-            self.camera_x + 5,
-            15,
-            "\n".join([f"{d}: {self.player.colliding(d)}" for d in ["left", "right", "up", "down"]]),
-            8,
-        )
-        pyxel.pset(self.player.x, self.player.y, 7)
 
 
 App()
