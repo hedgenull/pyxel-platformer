@@ -1,10 +1,11 @@
+import random
 import time
 
 import pyxel
 
 # Constants
 WINDOW_WIDTH = 148
-WINDOW_HEIGHT = 129
+WINDOW_HEIGHT = 136
 STAGE_WIDTH = 2048
 STAGE_HEIGHT = 136
 SCROLL_BORDER_X = 80
@@ -14,10 +15,12 @@ STARTING_PLAYER_X = 16
 STARTING_PLAYER_Y = 112
 PLAYER_SPEED = 2
 PLAYER_JUMP_SPEED = 6
-JUMP_COOLDOWN_SECONDS = 0.5
+JUMP_COOLDOWN_SECONDS = 0.3
+PLAYER_JUMP_SOUNDS = [0, 1, 2]
 BRICKS = (2, 0)
 PLATFORM = (2, 1)
 GOLD = (3, 1)
+ARROW_BLOCKS = [(0, 2), (0, 3), (1, 2), (1, 3)]
 scroll_x = 0
 
 
@@ -27,7 +30,7 @@ def get_tile(tile_x, tile_y):
 
 def detect_collision(x, y, dy, tiles=None):
     if tiles is None:
-        tiles = [BRICKS, PLATFORM, GOLD]
+        tiles = [BRICKS, PLATFORM, GOLD, *ARROW_BLOCKS]
     x1 = x // 8
     y1 = y // 8
     x2 = (x + 8 - 1) // 8
@@ -101,6 +104,7 @@ class Player:
         ):
             self.dy = -PLAYER_JUMP_SPEED
             self.last_jumped = time.time()
+            pyxel.play(0, random.choice(PLAYER_JUMP_SOUNDS))
 
         self.x, self.y, self.dx, self.dy = push_back(self.x, self.y, self.dx, self.dy)
         if self.x - SCROLL_BORDER_X < scroll_x:
@@ -122,6 +126,31 @@ class App:
         pyxel.init(WINDOW_WIDTH, WINDOW_HEIGHT, title="Pyxel Platformer")
         pyxel.load("resources.pyxres")
         pyxel.run(self.update, self.draw)
+
+    def special_text(self):
+        # Instructions/controls
+        pyxel.text(
+            -60,
+            5,
+            """Welcome!
+Controls:
+- Right arrow
+  to move right
+- Left arrow
+  to move left
+- Up arrow
+  to jump
+
+Get to the
+green portal
+at the end
+to win!
+Good luck!""",
+            pyxel.frame_count % 16,
+        )
+        # Player is in stupid failure area
+        if self.player.x >= 113 * 8 and self.player.x <= 126 * 8 and self.player.y >= 7 * 8:
+            pyxel.text(116 * 8, 6 * 8, "HA! Loser.", pyxel.frame_count % 16)
 
     def update(self):
         """Update the game elements."""
@@ -148,10 +177,16 @@ class App:
             # Draw the tilemap
             # bltm(x, y, tilemap index, column, row, width, height, transparency color)
             pyxel.bltm(0, 0, 0, 0, 0, STAGE_WIDTH, STAGE_HEIGHT, 14)
+            self.special_text()
         else:
             pyxel.cls(0)
             pyxel.camera()
-            pyxel.text(5, 5, "You Won!!!\nThanks for playing!\n[Q]uit\n\n\nPyxel Platformer by Hedge Fleming", 8)
+            pyxel.text(
+                5,
+                5,
+                "You Won!!!\nThanks for playing!\n[Q]uit\n\n\nPyxel Platformer by Hedge Fleming",
+                pyxel.frame_count % 16,
+            )
 
 
 App()
